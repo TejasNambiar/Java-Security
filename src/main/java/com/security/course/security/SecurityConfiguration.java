@@ -3,7 +3,6 @@ package com.security.course.security;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -13,9 +12,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
-import static com.security.course.security.UserPermissions.COURSE_WRITE;
+import java.util.concurrent.TimeUnit;
+
 import static com.security.course.security.UserRole.*;
 
 @Configuration
@@ -41,7 +41,26 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
                 .anyRequest()
                 .authenticated()
                 .and()
-                .httpBasic();
+                .formLogin()
+                    .loginPage("/login")
+                    .permitAll()
+                    .defaultSuccessUrl("/courses")
+                    .passwordParameter("password")
+                    .usernameParameter("username")
+                .and()
+                .rememberMe()
+                // You can use these two to extend your session using remember-me
+                    .tokenValiditySeconds((int)TimeUnit.DAYS.toSeconds(21))
+                    .key("secure-key")
+                    .rememberMeParameter("remember-me")
+                .and()
+                .logout()
+                    .logoutUrl("/logout")
+                    .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "GET"))
+                    .clearAuthentication(true)
+                    .invalidateHttpSession(true)
+                    .deleteCookies("JSESSIONID","remember-me")
+                    .logoutSuccessUrl("/login");
     }
 
     @Override
