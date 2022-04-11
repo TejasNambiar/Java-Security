@@ -1,17 +1,16 @@
 package com.security.course.security;
 
+import com.security.course.authentication.service.StudentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.util.concurrent.TimeUnit;
@@ -24,10 +23,12 @@ import static com.security.course.security.UserRole.*;
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
     private final PasswordEncoder passwordEncoder;
+    private final StudentService studentService;
 
     @Autowired
-    public SecurityConfiguration(PasswordEncoder passwordEncoder) {
+    public SecurityConfiguration(PasswordEncoder passwordEncoder, StudentService studentService) {
         this.passwordEncoder = passwordEncoder;
+        this.studentService = studentService;
     }
 
     @Override
@@ -63,34 +64,27 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
                     .logoutSuccessUrl("/login");
     }
 
+    /**
+     * These are the custom configurations that require to configured
+     * in order to use the custom StudentService class that implements UserDetailService
+     * for authentication
+     */
+
+    // This method wires all the things up
     @Override
-    @Bean
-    protected UserDetailsService userDetailsService(){
-
-        /**
-         * Our Users are ROLE AWARE, but don't have knowledge of permissions
-         * @return
-         */
-        UserDetails harley =  User.builder()
-                .username("Harley")
-                .password(passwordEncoder.encode("password"))
-                .authorities(STUDENT.getGrantedAuthorities())
-                .build();
-
-        UserDetails linda =  User.builder()
-                .username("Linda")
-                .password(passwordEncoder.encode("password"))
-                .authorities(ADMIN.getGrantedAuthorities())
-                .build();
-
-        UserDetails tom =  User.builder()
-                .username("tom")
-                .password(passwordEncoder.encode("password"))
-                .authorities(ADMIN_TRAINEE.getGrantedAuthorities())
-                .build();
-
-        return new InMemoryUserDetailsManager(
-                harley, linda, tom
-        );
+    public void configure(AuthenticationManagerBuilder builder){
+        builder.authenticationProvider(daoAuthenticationProvider());
     }
+
+    // This method provides all the resources
+    @Bean
+    public DaoAuthenticationProvider daoAuthenticationProvider(){
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        // this line allows passwords to be decoded
+        provider.setPasswordEncoder(passwordEncoder);
+        provider.setUserDetailsService(studentService);
+
+        return provider;
+    }
+
 }
